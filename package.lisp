@@ -1,24 +1,12 @@
 (in-package :cl)
 
-(defpackage :smart-server
-  (:nicknames :ws :server :smart :ss)
+(defpackage :smart-server/test
+  (:nicknames :sst)
   (:use :cl
         :celwk
         :hunchentoot
-        :hunchensocket
-        :cl-ppcre
-        :do-urlencode
-        :flexi-streams)
-  (:export #:*neverland*
-           #:try-fetch-location
-           #:create-smartor
-           #:smart+
-           #:smart=>
-           #:smart-acceptor
-           #:query-json-arrays
-           #:query-json-objects
-           #:query
-           #:area-of-ip
-           #:ip-location
-           #:delete-smart-routes))
-
+        :com.gigamonkeys.json
+        :smart-server)
+  (:export
+   #:query-value-list
+   #:mysql))

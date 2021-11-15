@@ -5,6 +5,9 @@
   "Go to next route parser, of course should be the end of the handler list")
 (defun& @next)
 
+(defparameter *last-request* nil
+  "The last request for debugging")
+
 (defparameter *neverland* ()
   "Global list for dispatcher, default for all acceptors, unless you set the acceptor-names
 list for allowed acceptors *handlers* ")
@@ -20,44 +23,47 @@ list for allowed acceptors *handlers* ")
   (push (apply #'make-instance 'smart-acceptor args) *smart-acceptors*)
   (car *smart-acceptors*))
 
+(defparameter *debug?* t)
+
 (defmethod acceptor-dispatch-request ((smartor smart-acceptor) request)
-  ;; ($output "~a~2%~a~%~%~a~&" (script-name*) (headers-in*) (headers-out*))
-  (mapc (^(router)
-          (multiple-value-bind (value processed)
-              (call (fourth router) request)
-            ;; ($output "~a~%~a" value processed)
-            (when (and processed (not (eq value @continue)))
-              ;; todo: Maybe optimize this when value likes:
-              ;; '(200 (:content-type "text/plain") ("Hello, World")))
-              ;; (output "Gonna send: ~a~%" value)
-              (unless (string? value)
-                (setf value (com.gigamonkeys.json:json value)))
-              ;; (setf value (celwk:to-json value)))
-              ;; (output "Ready => ~a~%" value)
-              ;; (if (string? value) value (to-json value))
-              (return-from acceptor-dispatch-request (and "😂 " value)))))
-        *neverland*)
+  (and *debug?* (output+ (script-name*) (headers-in*) (headers-out*)))
+  ;; (output+ "~a~2%~a~%~%~a~&" (script-name*) (headers-in*) (headers-out*))
+  ;; (push *request* *last-request*)
+  (let1 (begin-time (get-internal-real-time))
+    (mapc (^(router)
+            (multiple-value-bind (value processed)
+                (call (fourth router) request)
+              (when (and processed (not (eq value @continue)))
+                (unless (string? value)
+                  (setf value (com.gigamonkeys.json:json value)))
+                (and *debug?* (output "~&Send Content:~%~A~%" value))
+                (setf (header-out :duration) (input "~dms"(- (get-internal-real-time) begin-time)))
+                (return-from acceptor-dispatch-request value))))
+          *neverland*))
   (call-next-method))
 
-(defmethod define-smart-route ((smartor smart-acceptor) uri &key (acceptor-names t) method  handlers)
+(defmethod define-smart-route ((smartor smart-acceptor) uri &key (acceptor-names t) method handlers)
   "URI has NO query string, handler function MUST has &KEY and &ALLOW-OTHER-KEYS"
+  
   (setq *neverland*
-        (delete-if (^(info)
-                     (destructuring-bind ($uri $method $acceptor-names $handler) info
-                       (declare (ignore $handler))
-                       (and (string-equal uri $uri)
-                            (eql method $method)
-                            (or (eq acceptor-names t)
-                                (intersection acceptor-names $acceptor-names)))))
+        (delete-if λ(destructuring-bind ($uri $method $acceptor-names $handler) _
+                      (declare (ignore $handler))
+                      ;; (vprint $uri $method $acceptor-names)
+                      (and (string-equal uri $uri)
+                           (eql method $method)
+                           (or (eq acceptor-names t)
+                               (intersection acceptor-names $acceptor-names))))
                                         ; Maybe not totally equal, as long as one shared acceptor
 	               *neverland*))
-  `(io "~a" *neverland*)
-  (insert* (list uri method acceptor-names
+  ;; (vprint *neverland*)
+  (insert* (list uri method acceptor-names		;; Defined later, will be test later
                  (^(request)	;; route filter 
                    (multiple-value-bind (params bound??)                 
                        (match-parameters uri (script-name request))
                      (if (and bound??
-                              (or (not method) (eql method (request-method request))))
+                              (or (not method)
+                                  (eql method :all)
+                                  (eql method (request-method request))))
                          (let ($return)
                            (dolist (handler handlers (values $return t)) ;;go-on
                              ;; (vprint handler (fn? handler) (eql :function (bound-type handler)))
@@ -74,19 +80,31 @@ list for allowed acceptors *handlers* ")
 
 (defmacro smart=> (info &rest handlers)
   "Define the smart routes"
-  (destructuring-bind (uri &key (acceptor '(car *smart-acceptors*)) (acceptor-names t) &allow-other-keys)
-      (mklist info)
+  (destructuring-bind (uri &key (acceptor '(car *smart-acceptors*)) (acceptor-names t) (method :get) &allow-other-keys)
+      (mklist info);; (vprint uri method uri)
     `(define-smart-route ,acceptor ,uri
        :acceptor-names ,acceptor-names
-       :handlers (list ,@(mapcar #$(if (atom? $1)
-                                      (if (symbol? $1) (quoted-symbol $1) (always~ $1))
-                                      `(^(&key ,@(route-parameter-names uri) &allow-other-keys) ,$1))
+       :method ,method
+       :handlers (list ,@(mapcar λ(if (atom? _)
+                                      (if (symbol? _)
+                                          (quoted-symbol _)
+                                          (always~ _))
+                                      `(^(&key ,@(route-parameter-names uri) &allow-other-keys) ,_))
                                  handlers)))))
 
+(<=> create-smartor create-land)	;; neverland
+(alias land=> smart=>)
+(alias land+ smart+)
+
 (defun delete-smart-routes (&rest uris)
-  (delete-if (^(info)
-               (destructuring-bind ($uri . $needless)	;; The dot rejects using #$(...)
-                   info
-                 (declare (ignore $needless))
-                 (find $uri uris :test #'string-equal)))
+  (delete-if λ(destructuring-bind ($uri . $needless)
+                  _
+                (declare (ignore $needless))
+                (find $uri uris :test #'string-equal))
              *neverland*))
+
+#|
+Test the server
+(hunchentoot:start (make-instance 'hunchentoot:easy-acceptor :port 4242))
+(hunchentoot-test:test-hunchentoot "http://localhost:4242")
+|#

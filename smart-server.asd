@@ -16,20 +16,20 @@
                :hunchensocket
                :do-urlencode
                :drakma
-               :com.gigamonkeys.json)
+               :com.gigamonkeys.json
+               :postmodern)
   :serial t
   :components ((:file "package")
                (:file "route-parser")
                (:file "location")
-               (:file "smart-server")))
+               (:file "express")
+               (:file "smart-server")
+               (:file "database")))
 
 (defsystem :smart-server/test
   :description "Just for testing"
   :serial t
   :depends-on (:celwk
-               :smart-server
-               :postmodern
-               :cl-mysql)
-  :components ((:file "test/package")
-               (:file "test/database")
-               (:file "test/smart-test")))
+               :smart-server)
+  :components ((:file "test/package")))
+               ;; (:file "test/smart-test")))

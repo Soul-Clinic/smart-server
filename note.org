@@ -1,0 +1,30 @@
+* Acceptor:
+** Receive request (internally done)
+** Dispatch the request:
+*** Find a wise function to handle this request by Routing
+**** Parse the URL path, get the variables for handler function paramters
+*** Once the corresponding Route was found(searching in order), the associated handler/function list will be execute one by one
+**** Send the arguments to it wisely with function arguments?!
+**** Any function/handler may stop immediately by calling (abort-request-handler)
+***** These `Middle' functions may handle the *request*/*response* for next handlers:
+****** Change headers?
+****** Record some notes to database?
+****** Calculate for some next needed data?
+****** Set variables, e.g insert user info by access (aux-request-value field) 
+******* Thoses variable maybe stored in session info, normally by using cookies
+****** Implement by: 
+******* (progn ...) to execute these handlers
+******* (mapc (^(fn) (apply fn arg-list)) (but-last handlers)) (apply (last* handlers) arg-list)...) 
+******* (abort-request-handler) to finish handler
+**** Some Router handlers may go on without finishing 
+***** Verify the user role for one generally path(e.g /admin/:info*)
+****** Maybe not allowd, then response directly (abort-request-handler)
+****** If passed, then go to find next Router to handle it...
+******* Append a function next-route/go-on, with return a (gensyn) indicating go on searching for another router
+******** go-on => invoke the search-route again starting with the next..
+******* At the end of the handler list of the router
+**** 
+ 
+
+
+

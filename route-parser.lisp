@@ -14,14 +14,14 @@
   (unless (empty-string? string)
     (char string (1- (length string)))))
 
-(defun route-parameter-names (pattern &key (spliter "/") (type 'symbol) (prefix "#%:$"))
+(defun route-parameter-names (pattern &key (spliter "/") (type 'symbol) (prefix "$#:%"))
   "(route-parameter-names `/$name/#num/hello/world/:good') => (name num good)
    (route-parameter-names `/$name/#num/hello/world/:good' :type 'key) => (:name :num :good)"
-  (mapcar #$(call (if (eql type 'symbol)
+  (mapcar λ(call (if (eql type 'symbol)
                      'read-from-string
                      'symbol-to-key)
-                 (subseq $1 1))
-          (where #$(find (char $1 0) prefix)
+                 (subseq _ 1))
+          (where λ(find (char _ 0) prefix)
                  (trim-list (split spliter pattern)))))
 
 (defun parse-parameter (fmt str
@@ -37,7 +37,7 @@
 
 (defun alist-to-key-plist (alst)	;; No need
   "((age . 123) (name . 55.67)) => (:age 123 :name 55.67)"
-  (mapcan #$(list (symbol-to-key (car $1)) (cdr $1)) alst))
+  (mapcan λ(list (symbol-to-key (car _)) (cdr _)) alst))
 
 ;; http://uint32t.blogspot.com/2007/12/restful-handlers-with-hunchentoot.html
 
@@ -54,9 +54,9 @@
 
 (defun parse-pattern-path (pattern path)
   " /home/$name/$level*  /home/Can/1.4/2/3  => (:name `Can' :level* '(1.4 2.0 3.0))"
-  (destructuring-bind (fmts items) (mapcar #$(trim-list (split "/" $1))
+  (destructuring-bind (fmts items) (mapcar λ(trim-list (split "/" _))
                                            (list pattern path))
-    (let ((min (or (position-if (bind~ #'ends-with? '("?" "*")) fmts)  ;; => #$(ends-with? '("?" "*") $1)
+    (let ((min (or (position-if (bind~ #'ends-with? '("?" "*")) fmts)  ;; => λ(ends-with? '("?" "*") _)
                    (length fmts)))
           (max (length (if (find-if (bind~ #'ends-with? "*") fmts)
                            items	;; unlimited
