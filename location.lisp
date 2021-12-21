@@ -1,7 +1,7 @@
 (in-package :smart-server)
 
 ;; (defconstant +address+ (make-hash-table :test #'equal) "City location of the IP")
-(defconst +app-key+ "wjio8A0QfkQsSDHNGGwn4fLj")
+(defconst +app-key+ "YOUR-APP-KEY***")
 
 
 (defun ip-location (ip)
